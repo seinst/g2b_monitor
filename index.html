@@ -2,30 +2,47 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>G2B 전략 공고 모니터링</title>
+    <title>G2B 전략 공고 모니터링 v1.7</title>
     <style>
-        :root { --primary: #005bac; --bg: #f8f9fa; }
-        body { font-family: 'Pretendard', sans-serif; background: var(--bg); margin: 0; padding: 0; }
-        .container { max-width: 1200px; margin: 20px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        /* 비밀번호 모달 스타일 */
+        :root { --primary: #005bac; --secondary: #f1f3f5; --bg: #f8f9fa; }
+        body { font-family: 'Pretendard', 'Malgun Gothic', sans-serif; background: var(--bg); margin: 0; padding: 0; }
+        
+        /* 비밀번호 모달 레이어 */
         #passwordModal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #f8f9fa; /* 배경을 흰색 계열로 하여 깔끔하게 */
-            display: flex; justify-content: center; align-items: center; z-index: 10000;
+            background: #f8f9fa; display: flex; justify-content: center; align-items: center; z-index: 10000;
         }
-        .login-box { background: white; padding: 40px; border-radius: 10px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid #eee; }
-        input[type="password"] { padding: 12px; width: 220px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; margin-bottom: 15px; text-align: center; }
-        .btn-login { background: var(--primary); color: white; width: 100%; padding: 12px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
-        /* 메인 컨텐츠는 처음에 숨김 */
-        #mainContent { display: none; padding: 20px; }
-        /* 기존 테이블/태그 스타일 유지 */
-        .status-box { padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; font-weight: bold; }
-        .loading { background: #fff9db; color: #f08c00; border: 1px solid #ffe066; }
-        .success { background: #ebfbee; color: #2b8a3e; border: 1px solid #b2f2bb; }
-        table { width: 100%; border-collapse: collapse; }
-        th { background: var(--primary); color: white; padding: 12px; }
-        td { padding: 12px; border-bottom: 1px solid #eee; }
+        .login-box { 
+            background: white; padding: 40px; border-radius: 12px; text-align: center; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #eee; width: 320px;
+        }
+        input[type="password"] { 
+            padding: 12px; width: 80%; border: 1px solid #ddd; border-radius: 6px; 
+            font-size: 16px; margin-bottom: 20px; text-align: center; 
+        }
+        .btn-login { 
+            background: var(--primary); color: white; width: 90%; padding: 12px; 
+            border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        #mainContent { display: none; padding: 30px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+        
+        .status-box { padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; font-weight: bold; border: 1px solid transparent; }
+        .loading { background: #fff9db; color: #f08c00; border-color: #ffe066; }
+        .success { background: #ebfbee; color: #2b8a3e; border-color: #b2f2bb; }
+        
+        .tag-area { margin-bottom: 20px; padding: 15px; background: #f1f3f5; border-radius: 8px; }
+        .tag { background: white; color: var(--primary); padding: 4px 10px; border-radius: 15px; border: 1px solid var(--primary); margin-right: 6px; font-size: 12px; font-weight: bold; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: var(--primary); color: white; padding: 14px; font-size: 14px; position: sticky; top: 0; text-align: left; }
+        td { padding: 14px; border-bottom: 1px solid #eee; font-size: 13px; }
         tr:hover { background: #f1f7ff; cursor: pointer; }
+        
+        .btn-csv { background: #2b8a3e; color: white; border: none; padding: 10px 18px; border-radius: 6px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -33,23 +50,35 @@
 <div id="passwordModal">
     <div class="login-box">
         <h2 style="margin-top:0; color:var(--primary);">PLANI DX Monitor</h2>
-        <p style="color:#666; margin-bottom:20px;">비밀번호를 입력하세요.</p>
+        <p style="color:#666; font-size:14px; margin-bottom:25px;">보안 비밀번호를 입력하세요.</p>
         <input type="password" id="pwInput" placeholder="Password" autofocus>
-        <button class="btn-login" onclick="checkPassword()">접속하기</button>
-        <p id="pwError" style="color:red; display:none; margin-top:10px; font-size:13px;">비밀번호가 틀렸습니다.</p>
+        <button class="btn-login" onclick="checkPassword()">로그인</button>
+        <p id="pwError" style="color:#e03131; display:none; margin-top:15px; font-size:13px; font-weight:bold;">❌ 비밀번호가 올바르지 않습니다.</p>
     </div>
 </div>
 
 <div id="mainContent">
     <div class="container">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h2>🚀 G2B 전략 공고 리스트</h2>
-            <button onclick="saveToCSV()" style="background:#2b8a3e; color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; font-weight:bold;">📊 CSV 저장</button>
+        <div class="header">
+            <h2 style="margin:0;">🚀 나라장터 전략 공고 모니터링 (7일)</h2>
+            <button class="btn-csv" onclick="saveToCSV()">📊 CSV 엑셀 저장</button>
         </div>
-        <div id="status" class="status-box loading">⏳ 분석 준비 중...</div>
+
+        <div id="status" class="status-box loading">⏳ 시스템 초기화 중...</div>
+
+        <div class="tag-area">
+            <strong>추적 키워드:</strong> 
+            <span id="keywordTags"></span>
+        </div>
+
         <table id="resultTable" style="display:none;">
             <thead>
-                <tr><th>공고번호</th><th>공고명</th><th>수요기관</th><th>공고일시</th></tr>
+                <tr>
+                    <th style="width:140px;">공고번호</th>
+                    <th>입찰공고명</th>
+                    <th style="width:180px;">수요기관</th>
+                    <th style="width:150px;">공고일시</th>
+                </tr>
             </thead>
             <tbody id="listBody"></tbody>
         </table>
@@ -58,7 +87,9 @@
 
 <script>
     const CORRECT_PW = "plani_dx";
+    let finalResults = []; // 전역 변수로 데이터 관리
 
+    // 1. 비밀번호 체크 함수
     function checkPassword() {
         const input = document.getElementById('pwInput').value;
         if (input === CORRECT_PW) {
@@ -71,55 +102,103 @@
         }
     }
 
+    // 엔터키 지원
     document.getElementById('pwInput').addEventListener('keypress', (e) => { if(e.key === 'Enter') checkPassword(); });
 
-    // 메인 로직 시작
+    // 2. 메인 앱 로직
     function startApp() {
-        const API_KEY = decodeURIComponent('f5783d68424a4e6ae7aaada3e37732d82e7930868d612a3cc85279d2c2bb82d6');
+        const ENCODED_KEY = 'f5783d68424a4e6ae7aaada3e37732d82e7930868d612a3cc85279d2c2bb82d6';
+        const API_KEY = decodeURIComponent(ENCODED_KEY);
         const KEYWORDS = ['홈페이지', '시스템', '플랫폼', '클라우드', '차세대', '고도화'];
-        let results = [];
+
+        document.getElementById('keywordTags').innerHTML = KEYWORDS.map(k => `<span class="tag">#${k}</span>`).join('');
 
         const today = new Date();
         const ago7 = new Date();
         ago7.setDate(today.getDate() - 7);
-        const bgnDt = (d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}0000`)(ago7);
-        const endDt = (d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}0000`)(today);
 
-        async function fetchPages(pageNo = 1) {
-            document.getElementById('status').innerText = `⏳ ${pageNo}페이지 분석 중...`;
+        const getFormatDate = (d) => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}0000`;
+        const bgnDt = getFormatDate(ago7);
+        const endDt = getFormatDate(today);
+
+        async function fetchAll(pageNo = 1) {
+            const statusEl = document.getElementById('status');
+            statusEl.innerText = `⏳ ${pageNo}페이지 분석 중... (최근 7일 데이터 수집)`;
+
             const url = `https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServc?serviceKey=${API_KEY}&pageNo=${pageNo}&numOfRows=999&inqryDiv=1&inqryBgnDt=${bgnDt}&inqryEndDt=${endDt}&type=json`;
 
             try {
-                const res = await fetch(url);
-                const data = await res.json();
-                const items = data.response.body.items || [];
-                results = [...results, ...items.filter(item => KEYWORDS.some(k => item.bidNtceNm.includes(k)))];
+                const response = await fetch(url);
+                const data = await response.json();
                 
-                if (items.length === 999 && pageNo < 5) return fetchPages(pageNo + 1);
-                render(results);
-            } catch (e) {
-                document.getElementById('status').className = 'status-box error';
-                document.getElementById('status').innerText = '❌ 에러 발생 (CORS 확인 필요)';
+                if (data.response.header.resultCode !== '00') throw new Error(data.response.header.resultMsg);
+
+                const items = data.response.body.items || [];
+                // 키워드 필터링
+                const matched = items.filter(item => KEYWORDS.some(kw => item.bidNtceNm.includes(kw)));
+                finalResults = [...finalResults, ...matched];
+
+                // 999건이 꽉 찼다면 다음 페이지가 있을 확률이 높음 (최대 5페이지)
+                if (items.length === 999 && pageNo < 5) {
+                    return fetchAll(pageNo + 1);
+                } else {
+                    render(finalResults);
+                }
+            } catch (err) {
+                statusEl.className = 'status-box error';
+                statusEl.innerText = `❌ 에러: ${err.message} (CORS 확장 프로그램을 확인하세요)`;
             }
         }
 
         function render(data) {
-            const status = document.getElementById('status');
-            status.className = 'status-box success';
-            status.innerText = `✅ 분석 완료: 총 ${data.length}건`;
+            const statusEl = document.getElementById('status');
+            statusEl.className = 'status-box success';
+            statusEl.innerText = `✅ 분석 완료! 총 ${data.length}건의 전략 공고를 찾았습니다.`;
             document.getElementById('resultTable').style.display = 'table';
+            
             const tbody = document.getElementById('listBody');
+            tbody.innerHTML = ''; // 초기화
+
             data.forEach(item => {
                 const tr = document.createElement('tr');
-                tr.onclick = () => window.open(`https://www.g2b.go.kr:8081/ep/invitation/publish/bidInfoDtl.do?bidNtceNo=${item.bidNtceNo}&bidNtceOrd=${item.bidNtceOrd}`, '_blank');
-                tr.innerHTML = `<td>${item.bidNtceNo}</td><td><strong>${item.bidNtceNm}</strong></td><td>${item.dminsttNm}</td><td>${item.bidNtceDt.substring(0, 16)}</td>`;
+                const detailUrl = `https://www.g2b.go.kr:8081/ep/invitation/publish/bidInfoDtl.do?bidNtceNo=${item.bidNtceNo}&bidNtceOrd=${item.bidNtceOrd}`;
+                tr.onclick = () => window.open(detailUrl, '_blank');
+                tr.innerHTML = `
+                    <td>${item.bidNtceNo}</td>
+                    <td><strong>${item.bidNtceNm}</strong></td>
+                    <td>${item.dminsttNm}</td>
+                    <td>${item.bidNtceDt.substring(0, 16)}</td>
+                `;
                 tbody.appendChild(tr);
             });
         }
-        fetchPages();
+        fetchAll();
     }
 
-    function saveToCSV() { /* 기존 CSV 저장 로직 동일 */ }
+    // 3. CSV 저장 기능
+    function saveToCSV() {
+        if (finalResults.length === 0) return alert("저장할 데이터가 없습니다.");
+
+        // UTF-8 BOM 추가 (엑셀 한글 깨짐 방지)
+        let csv = "\ufeff공고번호,공고명,수요기관,공고일시,상세링크\n";
+        finalResults.forEach(item => {
+            const detailUrl = `https://www.g2b.go.kr:8081/ep/invitation/publish/bidInfoDtl.do?bidNtceNo=${item.bidNtceNo}&bidNtceOrd=${item.bidNtceOrd}`;
+            // 쉼표로 인한 셀 구분 방지를 위해 데이터에 큰따옴표 처리
+            csv += `"${item.bidNtceNo}","${item.bidNtceNm}","${item.dminsttNm}","${item.bidNtceDt}","${detailUrl}"\n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        const dateStr = new Date().toISOString().slice(0, 10);
+        
+        link.setAttribute("href", url);
+        link.setAttribute("download", `G2B_전략공고_${dateStr}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 </script>
 </body>
 </html>
