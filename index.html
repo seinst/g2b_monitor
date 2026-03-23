@@ -2,27 +2,29 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>PLANI DX 입찰 관리 시스템 v2.5</title>
+    <title>PLANI DX 입찰 관리 시스템 v2.6</title>
     <style>
         :root { --primary: #005bac; --bg: #f8f9fa; --border: #dee2e6; }
         body { font-family: 'Pretendard', 'Malgun Gothic', sans-serif; background: var(--bg); margin: 0; padding: 0; }
         #passwordModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8f9fa; display: flex; justify-content: center; align-items: center; z-index: 10000; }
         .login-box { background: white; padding: 40px; border-radius: 12px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 320px; border: 1px solid #eee; }
         #mainContent { display: none; padding: 20px; }
-        .container { max-width: 1450px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .container { max-width: 1600px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
         .status-box { padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; font-weight: bold; }
         .loading { background: #fff9db; color: #f08c00; }
         .success { background: #ebfbee; color: #2b8a3e; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { background: var(--primary); color: white; padding: 12px; position: sticky; top: 0; z-index: 10; text-align: left; }
-        td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
         tr:hover { background: #f8f9fa; }
         select, input[type="text"] { width: 100%; padding: 6px; border: 1px solid var(--border); border-radius: 4px; box-sizing: border-box; }
         .btn { padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; border: none; margin-left: 5px; transition: 0.2s; }
         .btn-save { background: #2b8a3e; color: white; }
         .btn-refresh { background: var(--primary); color: white; }
         .btn:hover { opacity: 0.8; }
+        .download-link { color: #d6336c; text-decoration: none; font-size: 11px; font-weight: bold; display: inline-block; margin-bottom: 2px; }
+        .download-link:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -52,11 +54,12 @@
         <table id="resultTable">
             <thead>
                 <tr>
-                    <th style="width:130px;">공고번호</th>
-                    <th>공고명 (클릭 시 상세페이지)</th>
-                    <th style="width:180px;">수요기관</th>
-                    <th style="width:130px;">공고일시</th>
-                    <th style="width:110px;">상태</th>
+                    <th style="width:125px;">공고번호</th>
+                    <th>공고명 (상세보기)</th>
+                    <th style="width:160px;">수요기관</th>
+                    <th style="width:110px;">공고일시</th>
+                    <th style="width:100px;">첨부파일</th>
+                    <th style="width:100px;">상태</th>
                     <th>의견</th>
                 </tr>
             </thead>
@@ -67,7 +70,6 @@
 
 <script>
     const CORRECT_PW = "plani_dx";
-    // ★ 여기에 구글 웹 앱 URL을 붙여넣으세요 ★
     const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbwAcoqDQ0kFpkHV3FJ1JO7HDe5GPJh5VLAt6If6J0CgwXEhgtdSdFhOiMfLaNcAictl/exec"; 
     
     let dbData = JSON.parse(localStorage.getItem('g2b_data') || '[]');
@@ -84,7 +86,6 @@
         }
     }
 
-    // 엔터키 지원
     document.getElementById('pwInput').addEventListener('keypress', (e) => { if(e.key === 'Enter') checkPassword(); });
 
     async function syncData() {
@@ -100,82 +101,72 @@
         
         let newCount = 0;
 
-        // 재귀적 페이징 호출 (누락 방지 로직)
         async function fetchPages(pageNo = 1) {
-            statusEl.innerText = `⏳ ${pageNo}페이지 분석 중... (7일치 전수조사)`;
+            statusEl.innerText = `⏳ ${pageNo}페이지 분석 중...`;
             const url = `https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServc?serviceKey=${API_KEY}&pageNo=${pageNo}&numOfRows=999&inqryDiv=1&inqryBgnDt=${fmt(ago7)}&inqryEndDt=${fmt(today)}&type=json`;
 
             try {
                 const res = await fetch(url);
                 const json = await res.json();
                 const items = json.response.body.items || [];
-                
                 const filtered = items.filter(item => KEYWORDS.some(kw => item.bidNtceNm.includes(kw)));
 
                 for (const item of filtered) {
-                    // 중복 체크 (기존 DB에 없는 경우만 추가)
                     if (!dbData.find(d => d.bidNtceNo === item.bidNtceNo)) {
                         item.userStatus = "검토중";
                         item.userComment = "";
-                        // 상세페이지 링크 수정
                         item.detailUrl = `https://www.g2b.go.kr/link/PNPE027_01/single/?bidPbancNo=${item.bidNtceNo}&bidPbancOrd=000`;
-                        
                         dbData.unshift(item);
                         newCount++;
-                        // 구글 시트로 자동 전송
                         sendToSheet(item);
                     }
                 }
-
-                // 999건이 다 찼다면 다음 페이지 수집
-                if (items.length === 999 && pageNo < 5) {
-                    await fetchPages(pageNo + 1);
-                }
-            } catch (e) {
-                console.error("API 수집 에러:", e);
-            }
+                if (items.length === 999 && pageNo < 5) await fetchPages(pageNo + 1);
+            } catch (e) { console.error(e); }
         }
 
         await fetchPages(1);
         localStorage.setItem('g2b_data', JSON.stringify(dbData));
         statusEl.className = 'status-box success';
-        statusEl.innerText = `✅ 수집 완료! 신규 공고 ${newCount}건이 추가되었습니다. (중복 제외)`;
+        statusEl.innerText = `✅ 수집 완료! 신규 ${newCount}건 추가.`;
         renderTable();
     }
 
-    // 구글 시트 전송 함수
     async function sendToSheet(item) {
         if (!GOOGLE_SHEET_URL.startsWith("http")) return;
         try {
-            await fetch(GOOGLE_SHEET_URL, {
-                method: "POST",
-                mode: "no-cors",
-                body: JSON.stringify(item)
-            });
-        } catch (e) { console.error("시트 전송 실패:", e); }
+            await fetch(GOOGLE_SHEET_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(item) });
+        } catch (e) { console.error(e); }
     }
 
     function renderTable() {
         const tbody = document.getElementById('listBody');
         tbody.innerHTML = '';
-        
-        // 공고일시 기준 최신순 정렬
         dbData.sort((a, b) => b.bidNtceDt.localeCompare(a.bidNtceDt));
         
         dbData.forEach((item, idx) => {
             const tr = document.createElement('tr');
+            
+            // 첨부파일 링크 생성 로직
+            let fileLinks = '';
+            for(let i=1; i<=4; i++) {
+                const fUrl = `https://www.g2b.go.kr/pn/pnp/pnpe/UntyAtchFile/downloadFile.do?bidPbancNo=${item.bidNtceNo}&bidPbancOrd=001&fileType=&fileSeq=${i}&prcmBsneSeCd=01`;
+                fileLinks += `<a href="${fUrl}" class="download-link">[다운로드${i}]</a>${i < 4 ? '<br>' : ''}`;
+            }
+
             tr.innerHTML = `
                 <td>${item.bidNtceNo}</td>
                 <td><a href="${item.detailUrl}" target="_blank" style="color:var(--primary); font-weight:bold; text-decoration:none;">${item.bidNtceNm}</a></td>
                 <td>${item.dminsttNm}</td>
                 <td>${item.bidNtceDt.substring(5, 16)}</td>
+                <td>${fileLinks}</td>
                 <td>
                     <select onchange="updateRow(${idx}, 'userStatus', this.value)">
                         ${['검토중','미참여','참여','보류','기타'].map(s => `<option value="${s}" ${item.userStatus===s?'selected':''}>${s}</option>`).join('')}
                     </select>
                 </td>
                 <td>
-                    <input type="text" value="${item.userComment || ''}" onchange="updateRow(${idx}, 'userComment', this.value)" placeholder="검토 의견 입력...">
+                    <input type="text" value="${item.userComment || ''}" onchange="updateRow(${idx}, 'userComment', this.value)" placeholder="의견...">
                 </td>
             `;
             tbody.appendChild(tr);
@@ -188,7 +179,7 @@
     }
 
     function saveToCSV() {
-        if (dbData.length === 0) return alert("데이터가 없습니다.");
+        if (dbData.length === 0) return alert("데이터 없음");
         let csv = "\ufeff공고번호,공고명,수요기관,공고일시,상태,의견\n";
         dbData.forEach(i => csv += `"${i.bidNtceNo}","${i.bidNtceNm}","${i.dminsttNm}","${i.bidNtceDt}","${i.userStatus}","${i.userComment}"\n`);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
