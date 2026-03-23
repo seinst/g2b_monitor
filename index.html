@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>PLANI DX 입찰 관리 시스템 v2.8</title>
+    <title>PLANI DX 입찰 관리 시스템 v3.0</title>
     <style>
         :root { --primary: #005bac; --bg: #f8f9fa; --border: #dee2e6; }
         body { font-family: 'Pretendard', 'Malgun Gothic', sans-serif; background: var(--bg); margin: 0; padding: 0; }
@@ -11,7 +11,13 @@
         #mainContent { display: none; padding: 20px; }
         .container { max-width: 1550px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
-        .search-keywords { background: #e9ecef; padding: 10px 15px; border-radius: 6px; font-size: 13px; color: #495057; margin-bottom: 15px; border-left: 4px solid var(--primary); }
+        .search-keywords { background: #e9ecef; padding: 10px 15px; border-radius: 6px; font-size: 13px; color: #495057; margin-bottom: 10px; border-left: 4px solid var(--primary); }
+        
+        .filter-section { background: #fff; padding: 10px 15px; border-radius: 6px; font-size: 13px; margin-bottom: 15px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .filter-left { display: flex; align-items: center; gap: 15px; }
+        .filter-group { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .filter-group input { cursor: pointer; width: 16px; height: 16px; }
+
         .status-box { padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; font-weight: bold; }
         .loading { background: #fff9db; color: #f08c00; }
         .success { background: #ebfbee; color: #2b8a3e; }
@@ -23,10 +29,9 @@
         .btn { padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; border: none; margin-left: 5px; transition: 0.2s; }
         .btn-save { background: #2b8a3e; color: white; }
         .btn-refresh { background: var(--primary); color: white; }
+        .btn-sort { background: #495057; color: white; font-size: 12px; padding: 6px 12px; }
         .btn:hover { opacity: 0.8; }
-        /* 첨부파일 링크 스타일 */
         .file-link { color: #d6336c; text-decoration: none; font-weight: bold; font-size: 12px; margin-right: 8px; white-space: nowrap; }
-        .file-link:hover { text-decoration: underline; color: #a61e4d; }
     </style>
 </head>
 <body>
@@ -34,10 +39,9 @@
 <div id="passwordModal">
     <div class="login-box">
         <h2 style="color:var(--primary); margin-top:0;">PLANI DX Monitor</h2>
-        <p style="color:#666; font-size:14px; margin-bottom:20px;">보안 비밀번호를 입력하세요.</p>
         <input type="password" id="pwInput" placeholder="Password" style="width:80%; padding:12px; margin-bottom:20px; text-align:center; border:1px solid #ddd; border-radius:5px;">
         <button class="btn btn-refresh" onclick="checkPassword()" style="width:90%; margin:0;">로그인</button>
-        <p id="pwError" style="color:#e03131; display:none; margin-top:15px; font-size:13px; font-weight:bold;">❌ 비밀번호가 올바르지 않습니다.</p>
+        <p id="pwError" style="color:#e03131; display:none; margin-top:15px; font-size:13px; font-weight:bold;">❌ 비밀번호 오류</p>
     </div>
 </div>
 
@@ -55,7 +59,19 @@
             <strong>🔍 수집 검색어 :</strong> 홈페이지, 시스템, 플랫폼, 클라우드, 차세대, 고도화
         </div>
 
-        <div id="status" class="status-box success">데이터 로드 완료 (신규 공고는 구글 시트로 자동 전송됩니다)</div>
+        <div class="filter-section">
+            <div class="filter-left">
+                <span style="font-weight: bold; color: var(--primary);">🎯 상태 필터:</span>
+                <label class="filter-group"><input type="checkbox" class="status-filter" value="검토중" checked onchange="renderTable()"> 검토중</label>
+                <label class="filter-group"><input type="checkbox" class="status-filter" value="참여" checked onchange="renderTable()"> 참여</label>
+                <label class="filter-group"><input type="checkbox" class="status-filter" value="보류" checked onchange="renderTable()"> 보류</label>
+                <label class="filter-group"><input type="checkbox" class="status-filter" value="미참여" checked onchange="renderTable()"> 미참여</label>
+                <label class="filter-group"><input type="checkbox" class="status-filter" value="기타" checked onchange="renderTable()"> 기타</label>
+            </div>
+            <button class="btn btn-sort" onclick="sortData()">⇅ 중요도순 정렬</button>
+        </div>
+
+        <div id="status" class="status-box success">데이터 로드 완료</div>
 
         <table id="resultTable">
             <thead>
@@ -88,7 +104,6 @@
             renderTable();
         } else {
             document.getElementById('pwError').style.display = 'block';
-            document.getElementById('pwInput').value = '';
         }
     }
 
@@ -97,26 +112,21 @@
     async function syncData() {
         const statusEl = document.getElementById('status');
         statusEl.className = 'status-box loading';
-        
         const API_KEY = decodeURIComponent('f5783d68424a4e6ae7aaada3e37732d82e7930868d612a3cc85279d2c2bb82d6');
         const KEYWORDS = ['홈페이지', '시스템', '플랫폼', '클라우드', '차세대', '고도화'];
-        
         const today = new Date();
         const ago7 = new Date(); ago7.setDate(today.getDate() - 7);
         const fmt = (d) => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}0000`;
         
         let newCount = 0;
-
         async function fetchPages(pageNo = 1) {
             statusEl.innerText = `⏳ ${pageNo}페이지 분석 중...`;
             const url = `https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServc?serviceKey=${API_KEY}&pageNo=${pageNo}&numOfRows=999&inqryDiv=1&inqryBgnDt=${fmt(ago7)}&inqryEndDt=${fmt(today)}&type=json`;
-
             try {
                 const res = await fetch(url);
                 const json = await res.json();
                 const items = json.response.body.items || [];
                 const filtered = items.filter(item => KEYWORDS.some(kw => item.bidNtceNm.includes(kw)));
-
                 for (const item of filtered) {
                     if (!dbData.find(d => d.bidNtceNo === item.bidNtceNo)) {
                         item.userStatus = "검토중";
@@ -130,7 +140,6 @@
                 if (items.length === 999 && pageNo < 5) await fetchPages(pageNo + 1);
             } catch (e) { console.error(e); }
         }
-
         await fetchPages(1);
         localStorage.setItem('g2b_data', JSON.stringify(dbData));
         statusEl.className = 'status-box success';
@@ -145,15 +154,32 @@
         } catch (e) { console.error(e); }
     }
 
+    // 정렬 로직 함수 추가
+    function sortData() {
+        const order = { "검토중": 1, "참여": 2, "보류": 3, "미참여": 4, "기타": 5 };
+        dbData.sort((a, b) => {
+            // 1순위: 상태 (검토중이 가장 위로)
+            if (order[a.userStatus] !== order[b.userStatus]) {
+                return order[a.userStatus] - order[b.userStatus];
+            }
+            // 2순위: 날짜 (최신순)
+            return b.bidNtceDt.localeCompare(a.bidNtceDt);
+        });
+        localStorage.setItem('g2b_data', JSON.stringify(dbData));
+        renderTable();
+        alert("중요도(상태) 및 최신순으로 정렬되었습니다.");
+    }
+
     function renderTable() {
         const tbody = document.getElementById('listBody');
         tbody.innerHTML = '';
-        dbData.sort((a, b) => b.bidNtceDt.localeCompare(a.bidNtceDt));
+        const checkedStatuses = Array.from(document.querySelectorAll('.status-filter:checked')).map(cb => cb.value);
+        const filteredData = dbData.filter(item => checkedStatuses.includes(item.userStatus));
         
-        dbData.forEach((item, idx) => {
+        filteredData.forEach((item) => {
             const tr = document.createElement('tr');
+            const idxInDb = dbData.findIndex(d => d.bidNtceNo === item.bidNtceNo);
             
-            // 첨부파일 가로 나열 로직 (1~3번 파일)
             let fileLinks = '';
             for(let i=1; i<=3; i++) {
                 const fUrl = `https://www.g2b.go.kr/pn/pnp/pnpe/UntyAtchFile/downloadFile.do?bidPbancNo=${item.bidNtceNo}&bidPbancOrd=000&fileType=&fileSeq=${i}&prcmBsneSeCd=03`;
@@ -167,12 +193,12 @@
                 <td>${item.bidNtceDt.substring(5, 16)}</td>
                 <td>${fileLinks}</td>
                 <td>
-                    <select onchange="updateRow(${idx}, 'userStatus', this.value)">
-                        ${['검토중','미참여','참여','보류','기타'].map(s => `<option value="${s}" ${item.userStatus===s?'selected':''}>${s}</option>`).join('')}
+                    <select onchange="updateRow(${idxInDb}, 'userStatus', this.value)">
+                        ${['검토중','참여','보류','미참여','기타'].map(s => `<option value="${s}" ${item.userStatus===s?'selected':''}>${s}</option>`).join('')}
                     </select>
                 </td>
                 <td>
-                    <input type="text" value="${item.userComment || ''}" onchange="updateRow(${idx}, 'userComment', this.value)" placeholder="의견...">
+                    <input type="text" value="${item.userComment || ''}" onchange="updateRow(${idxInDb}, 'userComment', this.value)" placeholder="의견...">
                 </td>
             `;
             tbody.appendChild(tr);
@@ -182,6 +208,7 @@
     function updateRow(idx, field, value) {
         dbData[idx][field] = value;
         localStorage.setItem('g2b_data', JSON.stringify(dbData));
+        renderTable();
     }
 
     function saveToCSV() {
