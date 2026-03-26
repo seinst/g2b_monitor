@@ -2,23 +2,26 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>PLANI DX 통합 관리 시스템 v3.5</title>
+    <title>PLANI DX 입찰 관리 시스템 v3.0</title>
     <style>
-        :root { --primary: #005bac; --secondary: #2b8a3e; --bg: #f8f9fa; --border: #dee2e6; }
+        :root { --primary: #005bac; --bg: #f8f9fa; --border: #dee2e6; }
         body { font-family: 'Pretendard', 'Malgun Gothic', sans-serif; background: var(--bg); margin: 0; padding: 0; }
         #passwordModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8f9fa; display: flex; justify-content: center; align-items: center; z-index: 10000; }
         .login-box { background: white; padding: 40px; border-radius: 12px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 320px; border: 1px solid #eee; }
         #mainContent { display: none; padding: 20px; }
-        .container { max-width: 1650px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .container { max-width: 1550px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
         .search-keywords { background: #e9ecef; padding: 10px 15px; border-radius: 6px; font-size: 13px; color: #495057; margin-bottom: 10px; border-left: 4px solid var(--primary); }
+        
         .filter-section { background: #fff; padding: 10px 15px; border-radius: 6px; font-size: 13px; margin-bottom: 15px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
         .filter-left { display: flex; align-items: center; gap: 15px; }
         .filter-group { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .filter-group input { cursor: pointer; width: 16px; height: 16px; }
+
         .status-box { padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; font-weight: bold; }
         .loading { background: #fff9db; color: #f08c00; }
         .success { background: #ebfbee; color: #2b8a3e; }
-        table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { background: var(--primary); color: white; padding: 12px; position: sticky; top: 0; z-index: 10; text-align: left; }
         td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; vertical-align: middle; }
         tr:hover { background: #f8f9fa; }
@@ -27,10 +30,8 @@
         .btn-save { background: #2b8a3e; color: white; }
         .btn-refresh { background: var(--primary); color: white; }
         .btn-sort { background: #495057; color: white; font-size: 12px; padding: 6px 12px; }
-        .type-badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; color: white; }
-        .badge-bid { background: var(--primary); } /* 진행공고 파랑 */
-        .badge-pre { background: var(--secondary); } /* 사전규격 초록 */
-        .file-link { color: #d6336c; text-decoration: none; font-weight: bold; font-size: 11px; margin-right: 5px; }
+        .btn:hover { opacity: 0.8; }
+        .file-link { color: #d6336c; text-decoration: none; font-weight: bold; font-size: 12px; margin-right: 8px; white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -47,9 +48,9 @@
 <div id="mainContent">
     <div class="container">
         <div class="header">
-            <h2 style="margin:0;">🚀 통합 입찰/사전규격 전략 모니터링</h2>
+            <h2 style="margin:0;">🚀 나라장터 전략 공고 통합 관리</h2>
             <div>
-                <button class="btn btn-refresh" onclick="syncData()">🔄 전체 데이터 수집 (7일)</button>
+                <button class="btn btn-refresh" onclick="syncData()">🔄 최신 공고 전수조사 (7일)</button>
                 <button class="btn btn-save" onclick="saveToCSV()">📊 CSV 내보내기</button>
             </div>
         </div>
@@ -75,13 +76,12 @@
         <table id="resultTable">
             <thead>
                 <tr>
-                    <th style="width:80px;">구분</th>
                     <th style="width:120px;">공고번호</th>
                     <th>공고명 (상세보기)</th>
                     <th style="width:160px;">수요기관</th>
-                    <th style="width:110px;">등록일시</th>
-                    <th style="width:140px;">첨부파일</th>
-                    <th style="width:90px;">상태</th>
+                    <th style="width:110px;">공고일시</th>
+                    <th style="width:150px;">첨부파일</th>
+                    <th style="width:100px;">상태</th>
                     <th>의견</th>
                 </tr>
             </thead>
@@ -93,147 +93,132 @@
 <script>
     const CORRECT_PW = "plani_dx";
     const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbwAcoqDQ0kFpkHV3FJ1JO7HDe5GPJh5VLAt6If6J0CgwXEhgtdSdFhOiMfLaNcAictl/exec"; 
-    const API_KEY = decodeURIComponent('f5783d68424a4e6ae7aaada3e37732d82e7930868d612a3cc85279d2c2bb82d6');
-    const KEYWORDS = ['홈페이지', '시스템', '플랫폼', '클라우드', '차세대', '고도화'];
-
-    let dbData = JSON.parse(localStorage.getItem('plani_integrated_data') || '[]');
+    
+    let dbData = JSON.parse(localStorage.getItem('g2b_data') || '[]');
 
     function checkPassword() {
-        if (document.getElementById('pwInput').value === CORRECT_PW) {
+        const input = document.getElementById('pwInput').value;
+        if (input === CORRECT_PW) {
             document.getElementById('passwordModal').style.display = 'none';
             document.getElementById('mainContent').style.display = 'block';
             renderTable();
-        } else { document.getElementById('pwError').style.display = 'block'; }
+        } else {
+            document.getElementById('pwError').style.display = 'block';
+        }
     }
+
     document.getElementById('pwInput').addEventListener('keypress', (e) => { if(e.key === 'Enter') checkPassword(); });
 
     async function syncData() {
         const statusEl = document.getElementById('status');
         statusEl.className = 'status-box loading';
+        const API_KEY = decodeURIComponent('f5783d68424a4e6ae7aaada3e37732d82e7930868d612a3cc85279d2c2bb82d6');
+        const KEYWORDS = ['홈페이지', '시스템', '플랫폼', '클라우드', '차세대', '고도화'];
         const today = new Date();
         const ago7 = new Date(); ago7.setDate(today.getDate() - 7);
-        const fmt = (d) => d.toISOString().slice(0,10).replace(/-/g, '') + "0000";
+        const fmt = (d) => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}0000`;
         
         let newCount = 0;
-
-        // 1. 진행공고 수집 (입찰공고목록조회)
-        async function fetchBids() {
-            const url = `https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServc?serviceKey=${API_KEY}&pageNo=1&numOfRows=500&inqryDiv=1&inqryBgnDt=${fmt(ago7)}&inqryEndDt=${fmt(today)}&type=json`;
+        async function fetchPages(pageNo = 1) {
+            statusEl.innerText = `⏳ ${pageNo}페이지 분석 중...`;
+            const url = `https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServc?serviceKey=${API_KEY}&pageNo=${pageNo}&numOfRows=999&inqryDiv=1&inqryBgnDt=${fmt(ago7)}&inqryEndDt=${fmt(today)}&type=json`;
             try {
                 const res = await fetch(url);
                 const json = await res.json();
                 const items = json.response.body.items || [];
-                processItems(items, '진행공고');
-            } catch (e) { console.error("공고 수집 실패", e); }
-        }
-
-        // 2. 사전규격 수집 (사전규격공고조회)
-        async function fetchPre() {
-            const url = `https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getPreBidPblancListInfo?serviceKey=${API_KEY}&pageNo=1&numOfRows=500&inqryBgnDt=${fmt(ago7)}&inqryEndDt=${fmt(today)}&type=json`;
-            try {
-                const res = await fetch(url);
-                const json = await res.json();
-                const items = json.response.body.items || [];
-                processItems(items, '사전규격');
-            } catch (e) { console.error("사전규격 수집 실패", e); }
-        }
-
-        function processItems(items, type) {
-            const filtered = items.filter(item => KEYWORDS.some(kw => (item.bidNtceNm || item.prprePnNm || "").includes(kw)));
-            filtered.forEach(item => {
-                const id = item.bidNtceNo || item.bfSpecPblancNo;
-                if (!dbData.find(d => (d.bidNtceNo || d.bfSpecPblancNo) === id)) {
-                    const newItem = {
-                        ...item,
-                        dataType: type,
-                        userStatus: "검토중",
-                        userComment: "",
-                        regDt: item.bidNtceDt || item.registrationDt || "",
-                        title: item.bidNtceNm || item.prprePnNm || "",
-                        org: item.dminsttNm || item.orderInsttNm || "",
-                        id: id,
-                        detailUrl: type === '진행공고' 
-                            ? `https://www.g2b.go.kr/link/PNPE027_01/single/?bidPbancNo=${id}&bidPbancOrd=000`
-                            : `https://www.g2b.go.kr/link/PNPE027_01/single/?bfSpecPblancNo=${id}`
-                    };
-                    dbData.unshift(newItem);
-                    newCount++;
-                    sendToSheet(newItem);
+                const filtered = items.filter(item => KEYWORDS.some(kw => item.bidNtceNm.includes(kw)));
+                for (const item of filtered) {
+                    if (!dbData.find(d => d.bidNtceNo === item.bidNtceNo)) {
+                        item.userStatus = "검토중";
+                        item.userComment = "";
+                        item.detailUrl = `https://www.g2b.go.kr/link/PNPE027_01/single/?bidPbancNo=${item.bidNtceNo}&bidPbancOrd=000`;
+                        dbData.unshift(item);
+                        newCount++;
+                        sendToSheet(item);
+                    }
                 }
-            });
+                if (items.length === 999 && pageNo < 5) await fetchPages(pageNo + 1);
+            } catch (e) { console.error(e); }
         }
-
-        await Promise.all([fetchBids(), fetchPre()]);
-        localStorage.setItem('plani_integrated_data', JSON.stringify(dbData));
+        await fetchPages(1);
+        localStorage.setItem('g2b_data', JSON.stringify(dbData));
         statusEl.className = 'status-box success';
-        statusEl.innerText = `✅ 수집 완료! 신규 건 ${newCount}건 추가.`;
+        statusEl.innerText = `✅ 수집 완료! 신규 ${newCount}건 추가.`;
         renderTable();
     }
 
     async function sendToSheet(item) {
         if (!GOOGLE_SHEET_URL.startsWith("http")) return;
-        try { await fetch(GOOGLE_SHEET_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(item) }); } catch (e) {}
+        try {
+            await fetch(GOOGLE_SHEET_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(item) });
+        } catch (e) { console.error(e); }
     }
 
+    // 정렬 로직 함수 추가
     function sortData() {
         const order = { "검토중": 1, "참여": 2, "보류": 3, "미참여": 4, "기타": 5 };
-        dbData.sort((a, b) => order[a.userStatus] - order[b.userStatus] || b.regDt.localeCompare(a.regDt));
-        localStorage.setItem('plani_integrated_data', JSON.stringify(dbData));
+        dbData.sort((a, b) => {
+            // 1순위: 상태 (검토중이 가장 위로)
+            if (order[a.userStatus] !== order[b.userStatus]) {
+                return order[a.userStatus] - order[b.userStatus];
+            }
+            // 2순위: 날짜 (최신순)
+            return b.bidNtceDt.localeCompare(a.bidNtceDt);
+        });
+        localStorage.setItem('g2b_data', JSON.stringify(dbData));
         renderTable();
-        alert("중요도 및 최신 등록순으로 정렬되었습니다.");
+        alert("중요도(상태) 및 최신순으로 정렬되었습니다.");
     }
 
     function renderTable() {
         const tbody = document.getElementById('listBody');
         tbody.innerHTML = '';
         const checkedStatuses = Array.from(document.querySelectorAll('.status-filter:checked')).map(cb => cb.value);
+        const filteredData = dbData.filter(item => checkedStatuses.includes(item.userStatus));
         
-        dbData.filter(item => checkedStatuses.includes(item.userStatus)).forEach((item) => {
+        filteredData.forEach((item) => {
             const tr = document.createElement('tr');
-            const idxInDb = dbData.findIndex(d => d.id === item.id);
-            const titleColor = item.dataType === '사전규격' ? 'var(--secondary)' : 'var(--primary)';
-            const badgeClass = item.dataType === '사전규격' ? 'badge-pre' : 'badge-bid';
+            const idxInDb = dbData.findIndex(d => d.bidNtceNo === item.bidNtceNo);
             
             let fileLinks = '';
             for(let i=1; i<=3; i++) {
-                const fUrl = `https://www.g2b.go.kr/pn/pnp/pnpe/UntyAtchFile/downloadFile.do?bidPbancNo=${item.id}&bidPbancOrd=000&fileType=&fileSeq=${i}&prcmBsneSeCd=03`;
+                const fUrl = `https://www.g2b.go.kr/pn/pnp/pnpe/UntyAtchFile/downloadFile.do?bidPbancNo=${item.bidNtceNo}&bidPbancOrd=000&fileType=&fileSeq=${i}&prcmBsneSeCd=03`;
                 fileLinks += `<a href="${fUrl}" class="file-link">[첨부${i}]</a>`;
             }
 
             tr.innerHTML = `
-                <td><span class="type-badge ${badgeClass}">${item.dataType}</span></td>
-                <td>${item.id}</td>
-                <td><a href="${item.detailUrl}" target="_blank" style="color:${titleColor}; font-weight:bold; text-decoration:none;">${item.title}</a></td>
-                <td>${item.org}</td>
-                <td>${item.regDt.substring(5, 16)}</td>
+                <td>${item.bidNtceNo}</td>
+                <td><a href="${item.detailUrl}" target="_blank" style="color:var(--primary); font-weight:bold; text-decoration:none;">${item.bidNtceNm}</a></td>
+                <td>${item.dminsttNm}</td>
+                <td>${item.bidNtceDt.substring(5, 16)}</td>
                 <td>${fileLinks}</td>
                 <td>
-                    <select onchange="updateRow('${item.id}', 'userStatus', this.value)">
+                    <select onchange="updateRow(${idxInDb}, 'userStatus', this.value)">
                         ${['검토중','참여','보류','미참여','기타'].map(s => `<option value="${s}" ${item.userStatus===s?'selected':''}>${s}</option>`).join('')}
                     </select>
                 </td>
                 <td>
-                    <input type="text" value="${item.userComment || ''}" onchange="updateRow('${item.id}', 'userComment', this.value)" placeholder="의견...">
+                    <input type="text" value="${item.userComment || ''}" onchange="updateRow(${idxInDb}, 'userComment', this.value)" placeholder="의견...">
                 </td>
             `;
             tbody.appendChild(tr);
         });
     }
 
-    function updateRow(id, field, value) {
-        const target = dbData.find(d => d.id === id);
-        if(target) target[field] = value;
-        localStorage.setItem('plani_integrated_data', JSON.stringify(dbData));
+    function updateRow(idx, field, value) {
+        dbData[idx][field] = value;
+        localStorage.setItem('g2b_data', JSON.stringify(dbData));
         renderTable();
     }
 
     function saveToCSV() {
-        let csv = "\ufeff구분,공고번호,공고명,수요기관,등록일시,상태,의견\n";
-        dbData.forEach(i => csv += `"${i.dataType}","${i.id}","${i.title}","${i.org}","${i.regDt}","${i.userStatus}","${i.userComment}"\n`);
+        if (dbData.length === 0) return alert("데이터 없음");
+        let csv = "\ufeff공고번호,공고명,수요기관,공고일시,상태,의견\n";
+        dbData.forEach(i => csv += `"${i.bidNtceNo}","${i.bidNtceNm}","${i.dminsttNm}","${i.bidNtceDt}","${i.userStatus}","${i.userComment}"\n`);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `PLANI_통합관리_${new Date().toISOString().slice(0,10)}.csv`;
+        link.download = `PLANI_입찰관리_${new Date().toISOString().slice(0,10)}.csv`;
         link.click();
     }
 </script>
